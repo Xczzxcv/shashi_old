@@ -1,6 +1,6 @@
 #include <iostream>
+#include <ctime>
 #include "Game.hpp"
-
 
 int main() {
 	std::cout << "HEKLIO" << std::endl;
@@ -14,5 +14,6 @@ int main() {
 
 }
 
+//
 //176 black
 //178 white
