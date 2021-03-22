@@ -1,5 +1,4 @@
 #include <iostream>
-#include <ctime>
 #include "Game.hpp"
 
 int main() {
