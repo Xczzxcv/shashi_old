@@ -64,7 +64,12 @@ private:
 	void set_state(std::array<SqContent, BOARD_SQUARES_NUM>& new_board, Side new_whose_turn);
 	void find_poss_variants(Side side, std::vector<Move>& poss_moves, 
 		std::vector<TakeList>& poss_takes);
-	void find_poss_moves(Pos pos, std::vector<Move>& poss_moves);
+	void find_poss_moves(Pos pos, std::vector<Move>& poss_moves, Side side);
+	void find_poss_moves_dr(Pos pos, std::vector<Move>& poss_moves, 
+		SqContent curr_sq, Side side);
+	void find_poss_moves_king(Pos pos, std::vector<Move>& poss_moves, 
+		SqContent curr_sq, Side side);
+	inline bool can_move_on_square(Pos square_to_move_pos);
 	void find_poss_takes(Pos pos, std::vector<TakeList>& poss_takes, const ForcesType& enemy, Side side);
 	void find_poss_takes_diagonal(Pos pos, Vect2 coeffs, BNT max_range, 
 		std::vector<TakeList>& poss_takes, const ForcesType& enemy, Side side);
@@ -94,45 +99,17 @@ private:
 	BNT m_king_max_take_range = BOARD_SIZE - 1;
 };
 
+
+
 class TakeList {
 public:
-	bool add_take(TakeNode take, BNT control_length) {
-		printf("(add_take) ctrl_len: %d, real size: %d\n", control_length, m_takes.size());
+	bool add_take(TakeNode take, BNT control_length);
+	void copy_list(TakeList& copy_to, BNT copy_size);
+	bool check_already_taken(Pos pos, BNT check_len) const;
+	BNT length() const;
+	const std::vector<TakeNode>& get_list() const;
+	void correct_last_empty_pos(Pos destination_pos);
 
-		if (m_takes.size() == control_length){
-			m_takes.push_back(take);
-			return true;
-		}
-		else { return false; }
-	}
-
-	void copy_list(TakeList& copy_to, BNT copy_size) {
-		//std::cout << "(copy_list) BEFORE copying " << copy_size << " elt" << std::endl;
-		//std::cout << "(copy_list) curr_list: " << *this << std::endl;
-		//std::cout << "(copy_list) copy_to list: " << copy_to << std::endl;
-		copy_to.m_takes = std::vector<TakeNode>(m_takes.begin(), m_takes.begin() + copy_size);
-		//std::cout << "(copy_list) AFTER" << std::endl;
-		//std::cout << "(copy_list) curr_list: " << *this << std::endl;
-		//std::cout << "(copy_list) copy_to list: " << copy_to << std::endl;
-	}
-
-	bool check_already_taken(Pos pos, BNT check_len) {
-		BNT taken_ind = Game::get_index(pos),
-			for_cnt = 0;
-		for (auto take_iter = m_takes.begin(); for_cnt < check_len && take_iter != m_takes.end(); ++take_iter, ++for_cnt) {
-			if (take_iter->taken == taken_ind) { return true; }
-			++for_cnt;
-		}
-		return false;
-	}
-
-	BNT length() {
-		return m_takes.size();
-	}
-
-	const std::vector<TakeNode>& get_list() const {
-		return m_takes;
-	}
 	friend std::ostream& operator << (std::ostream& outs, const TakeList& takelist);
 protected:
 	std::vector<TakeNode> m_takes;
@@ -140,5 +117,6 @@ protected:
 
 std::ostream& operator<< (std::ostream& outs, const TakeList& takelist);
 std::ostream& operator<< (std::ostream& outs, const TakeNode& takenode);
+std::ostream& operator<< (std::ostream& outs, const Move& takenode);
 }
 
