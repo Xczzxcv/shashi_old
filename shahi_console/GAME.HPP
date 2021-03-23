@@ -84,6 +84,7 @@ private:
 	inline Side get_opponent() const;
 	inline bool is_draught(SqContent smth);
 	inline bool is_king (SqContent smth);
+	inline Vect2 make_diag_coeffs (Pos from, Pos to);
 
 	std::array<SqContent, BOARD_SQUARES_NUM> m_board;
 	Side m_whose_turn;
@@ -96,7 +97,7 @@ private:
 class TakeList {
 public:
 	bool add_take(TakeNode take, BNT control_length) {
-		//printf("(add_take) ctrl_len: %d, real size: %d\n", control_length, m_takes.size());
+		printf("(add_take) ctrl_len: %d, real size: %d\n", control_length, m_takes.size());
 
 		if (m_takes.size() == control_length){
 			m_takes.push_back(take);
@@ -105,16 +106,22 @@ public:
 		else { return false; }
 	}
 
-	void copy_list(TakeList& copy_to, BNT copy_size = -1) {
-		//if (copy_size == -1) { copy_to.m_takes = m_takes; }
-		//else{ copy_to.m_takes = std::vector<TakeNode>(m_takes.begin(), m_takes.begin() + copy_size + 1); }
+	void copy_list(TakeList& copy_to, BNT copy_size) {
+		//std::cout << "(copy_list) BEFORE copying " << copy_size << " elt" << std::endl;
+		//std::cout << "(copy_list) curr_list: " << *this << std::endl;
+		//std::cout << "(copy_list) copy_to list: " << copy_to << std::endl;
 		copy_to.m_takes = std::vector<TakeNode>(m_takes.begin(), m_takes.begin() + copy_size);
+		//std::cout << "(copy_list) AFTER" << std::endl;
+		//std::cout << "(copy_list) curr_list: " << *this << std::endl;
+		//std::cout << "(copy_list) copy_to list: " << copy_to << std::endl;
 	}
 
-	bool check_already_taken(Pos pos) {
-		BNT taken_ind = Game::get_index(pos);
-		for (auto& take : m_takes) {
-			if (take.taken == taken_ind) { return true; }
+	bool check_already_taken(Pos pos, BNT check_len) {
+		BNT taken_ind = Game::get_index(pos),
+			for_cnt = 0;
+		for (auto take_iter = m_takes.begin(); for_cnt < check_len && take_iter != m_takes.end(); ++take_iter, ++for_cnt) {
+			if (take_iter->taken == taken_ind) { return true; }
+			++for_cnt;
 		}
 		return false;
 	}
@@ -132,5 +139,6 @@ protected:
 };
 
 std::ostream& operator<< (std::ostream& outs, const TakeList& takelist);
+std::ostream& operator<< (std::ostream& outs, const TakeNode& takenode);
 }
 
