@@ -3,8 +3,16 @@
 #include <stdio.h>
 #include <iostream>
 #include <ctime>
+#include <algorithm>
 #include <cstdlib>
 #include "Game.hpp"
+
+//#define DEBUG_DEEP_TAKE_KING
+//#define DEBUG_DEEP_TAKE_DR
+//#define DEBUG_UNMAKE_TAKE
+//#define DEBUG_MAKE_TAKE
+//#define DEBUG_ALREADY_TAKEN
+#define DEBUG_AI
 
 namespace DraughtsGame {
 
@@ -25,15 +33,61 @@ void Game::main_loop() {
 	SqContent e = SqContent::empty_sq, s = SqContent::white_sq,
 		b = SqContent::black_dr, B = SqContent::black_king,
 		w = SqContent::white_dr, W = SqContent::white_king;
-	std::array<SqContent, BOARD_SQUARES_NUM> new_board{
+	BoardType new_board{
 		s,e,s,e,s,e,s,e,
-		e,s,e,s,b,s,e,s,
-		s,b,s,e,s,e,s,e,
-		e,s,b,s,b,s,e,s,
-		s,b,s,w,s,e,s,e,
-		e,s,e,s,b,s,e,s,
-		s,e,s,w,s,e,s,e,
-		e,s,e,s,e,s,e,s,
+		e,s,e,s,e,s,b,s,
+		s,e,s,e,s,e,s,e,
+		b,s,e,s,b,s,e,s,
+		s,e,s,e,s,e,s,e,
+		w,s,e,s,e,s,e,s,
+		s,w,s,e,s,e,s,w,
+		w,s,w,s,w,s,w,s,
+		//
+		//s,e,s,e,s,e,s,e,
+		//W,s,e,s,e,s,b,s,
+		//s,e,s,e,s,b,s,e,
+		//e,s,b,s,e,s,e,s,
+		//s,e,s,e,s,b,s,w,
+		//e,s,e,s,e,s,e,s,
+		//s,w,s,e,s,e,s,e,
+		//e,s,e,s,e,s,e,s,
+		//
+		//s,e,s,e,s,e,s,e,
+		//W,s,e,s,e,s,b,s,
+		//s,e,s,e,s,b,s,e,
+		//e,s,b,s,e,s,b,s,
+		//s,e,s,e,s,e,s,w,
+		//e,s,e,s,e,s,e,s,
+		//s,w,s,e,s,e,s,e,
+		//e,s,e,s,e,s,e,s,
+		//
+		//s,e,s,W,s,e,s,b,
+		//e,s,e,s,b,s,b,s,
+		//s,e,s,e,s,b,s,b,
+		//b,s,w,s,e,s,w,s,
+		//s,e,s,e,s,w,s,w,
+		//B,s,e,s,w,s,w,s,
+		//s,e,s,e,s,e,s,w,
+		//w,s,e,s,e,s,e,s,
+		//
+		//s,b,s,e,s,b,s,b,
+		//b,s,b,s,b,s,b,s,
+		//s,e,s,b,s,e,s,b,
+		//w,s,b,s,b,s,b,s,
+		//s,e,s,e,s,e,s,w,
+		//w,s,e,s,w,s,w,s,
+		//s,w,s,w,s,w,s,w,
+		//w,s,w,s,e,s,w,s,
+		//
+		//s,e,s,e,s,e,s,e,
+		//e,s,e,s,b,s,e,s,
+		//s,b,s,e,s,e,s,e,
+		//e,s,b,s,b,s,e,s,
+		//s,b,s,w,s,e,s,e,
+		//e,s,e,s,b,s,e,s,
+		//s,e,s,w,s,e,s,e,
+		//e,s,e,s,e,s,e,s,
+		// 
 		//s,e,s,e,s,e,s,e,
 		//e,s,e,s,e,s,e,s,
 		//s,e,s,e,s,b,s,e,
@@ -53,38 +107,47 @@ void Game::main_loop() {
 		//e,s,e,s,e,s,e,s,
 	};
 
-	set_state(new_board, Side::white);
+	//set_state(new_board, Side::white);
+
+	std::cout << "GAME STARTS!" << std::endl;
+	print_board(true);
 
 	while (m_game_is_on) {
-		print_board(true);
 
 		find_poss_variants(m_whose_turn, poss_moves, poss_takes);
-		std::cout << "size " << poss_takes.size() << ' ' << poss_moves.size() << std::endl;
+		std::cout << "size: " 
+			<< "takes: " << poss_takes.size() 
+			<< " moves: " << poss_moves.size() 
+			<< " analyze: " << position_analysis(m_board, m_whose_turn)
+			<< std::endl;
 		if (poss_takes.size()) {
-			for (BNT i = 0; i < poss_takes.size(); ++i) {
-				TakeList& curr_takelist = poss_takes[i];
-				std::cout << i << "| " << curr_takelist << std::endl;
-			}
+			//for (BNT i = 0; i < poss_takes.size(); ++i) {
+			//	TakeList& curr_takelist = poss_takes[i];
+			//	std::cout << i << "| " << curr_takelist << std::endl;
+			//}
 
-			make_take(poss_takes[std::rand() % poss_takes.size()]);
+			make_take(poss_takes[AI(0, m_whose_turn, m_whose_turn).first]);
 		}
 		else if (poss_moves.size()) {
-			for (BNT i = 0; i < poss_moves.size(); ++i) {
-				Move& curr_move = poss_moves[i];
-				std::cout << i << "| " << curr_move << std::endl;
-			}
+			//for (BNT i = 0; i < poss_moves.size(); ++i) {
+			//	Move& curr_move = poss_moves[i];
+			//	std::cout << i << "| " << curr_move << std::endl;
+			//}
 
-			make_move(poss_moves[std::rand() % poss_moves.size()]);
+			make_move(poss_moves[AI(0, m_whose_turn, m_whose_turn).first]);
 		}
 		else {
 			std::cout << "END" << std::endl;
 			m_game_is_on = false;
-			m_winner = get_opponent();
+			m_winner = get_opponent(m_whose_turn);
 			m_winner_text = (m_whose_turn == Side::black) ? "White" : "Black";
 		}
+
+		std::cout << "NOW POSITION IS:" << std::endl;
+		print_board(true);
 		std::cin.get();
 
-		m_whose_turn = get_opponent();
+		m_whose_turn = get_opponent(m_whose_turn);
 	}
 	std::cout << "Winner is.... " << m_winner_text << "!" << std::endl;
 	print_board(true);
@@ -96,7 +159,7 @@ void Game::print_board(bool is_big) const {
 		black_sq = 176, white_k = 'W', black_k = 'B'
 	};
 
-	BoardChar curr_char;
+	BoardChar curr_char{ BoardChar::white_sq }; // added just random value because of compiler warning
 	BNT i_range = (is_big) ? BOARD_SIZE * 2 : BOARD_SIZE,
 		char_num = (is_big) ? 4 : 2;
 
@@ -132,12 +195,141 @@ void Game::print_board(bool is_big) const {
 	}
 }
 
-BNT Game::position_analysis() {
-	return 0;
+BNT Game::position_analysis(BoardType& board, Side side) {
+	static BNT draught_val = 1;
+	static BNT king_val = 3;
+	static BNT endgame_val = 1000; // if win or lose
+	BNT our_score = 0, 
+		their_score = 0;
+	ForcesType we, enemy;
+
+	if (true) {
+	//if (side == Side::white) {
+		we = ForcesType{ SqContent::white_dr, SqContent::white_king };
+		enemy = ForcesType{ SqContent::black_dr, SqContent::black_king };
+	}
+	else {
+		we = ForcesType{ SqContent::black_dr, SqContent::black_king };
+		enemy = ForcesType{ SqContent::white_dr, SqContent::white_king };
+	}
+
+	for (BNT i = 0; i < BOARD_SQUARES_NUM; ++i) {
+		if (m_board[i] == we.draught) { our_score += draught_val; }
+		else if (m_board[i] == we.king) { our_score += king_val; }
+		else if (m_board[i] == enemy.draught) { their_score += draught_val; }
+		else if (m_board[i] == enemy.king) { their_score += king_val; }
+	}
+
+	if (our_score == 0) { // if no our forces is on board
+		return -endgame_val;
+	}
+	else if (their_score == 0) { // if no their forces is on board
+		return endgame_val;
+	}
+	else {
+		return our_score - their_score;
+	}
 }
 
-void Game::AI() {
+// min-max algorithm
+AIResult Game::AI(BNT deep_lvl, Side ai_side, Side curr_side) {
+	AIResult final_result;
+	std::vector<Move> poss_moves;
+	std::vector<TakeList> poss_takes;
+	std::vector<AIResult> analyze_results;
 
+	poss_moves.reserve(DRAUGHTS_NUM);
+	poss_takes.reserve(DRAUGHTS_NUM);
+
+	find_poss_variants(curr_side, poss_moves, poss_takes);
+#ifdef DEBUG_AI
+	std::string tab(deep_lvl, 204);
+	std::cout << std::endl;
+	std::cout << tab << "(AI) deep_lvl: " << deep_lvl << std::endl;
+	std::cout << tab << "(AI) poss_takes: "
+		<< poss_takes.size() 
+		<< " poss_moves: " 
+		<< poss_moves.size() 
+		<< std::endl;
+#endif
+
+
+	if ((poss_takes.size() + poss_moves.size() == 0) // end of the game
+		|| (poss_takes.size() == 0 && deep_lvl >= CALCULATION_LVL))
+	{
+		auto temp = AIResult{ 0, position_analysis(m_board, curr_side) };
+#ifdef DEBUG_AI
+		std::cout << tab << "(AI) deepest result on "
+			<< deep_lvl << ": " << temp.second <<
+			" for " << (bool)curr_side << " side" << std::endl;
+#endif
+		return temp;
+	}
+
+	analyze_results.reserve(poss_takes.size() + poss_moves.size());
+
+	if (poss_takes.size()) {
+		for (auto& take : poss_takes) {
+			make_take(take);
+#ifdef DEBUG_AI
+			std::cout << tab << "(AI) take: " << take << std::endl;
+			print_board();
+#endif
+			auto temp = AI(deep_lvl + 1, ai_side, get_opponent(curr_side));
+			analyze_results.push_back(
+				temp
+			);
+			unmake_take(take);
+#ifdef DEBUG_AI
+			std::cout << tab << "(AI) result: " << temp.second << std::endl;
+#endif
+		}
+	}
+	else if (poss_moves.size()) {
+		for (auto& move : poss_moves) {
+			make_move(move);
+#ifdef DEBUG_AI
+			std::cout << tab << "(AI) move: " << move << std::endl;
+			print_board();
+#endif
+			auto temp = AI(deep_lvl + 1, ai_side, get_opponent(curr_side));
+			analyze_results.push_back(
+				temp
+			);
+			unmake_move(move);
+#ifdef DEBUG_AI
+			std::cout << tab << "(AI) result: " << temp.second << std::endl;
+#endif
+		}
+	}
+
+	if (curr_side == ai_side) {
+		auto temp_it = std::max_element(analyze_results.begin(), analyze_results.end());
+		final_result = AIResult{ temp_it - analyze_results.begin(), temp_it->second };
+	}
+	else {
+		auto temp_it = std::min_element(analyze_results.begin(), analyze_results.end());
+		final_result = AIResult{ temp_it - analyze_results.begin(), temp_it->second };
+	}
+
+	if (deep_lvl == -1) {
+		std::cout << "(AI) before return" << std::endl;
+		std::cout << "  final_res: " << final_result.first << 
+			" " << final_result.second << std::endl;
+		std::cout << "  poss variants is:" << std::endl;
+		std::cout << "  takes:" << std::endl;
+		for (auto& elt : poss_takes) {
+			std::cout << "    " << elt << std::endl;
+		}
+		std::cout << "  moves:" << std::endl;
+		for (auto& elt : poss_moves) {
+			std::cout << "    " << elt << std::endl;
+		}
+		std::cout << "  board:" << std::endl;
+		print_board(true);
+	}
+
+	return final_result;
 }
 
 void Game::init_board() {
@@ -169,7 +361,7 @@ void Game::init_board() {
 	std::cout << std::endl;
 }
 
-void Game::set_state(std::array<SqContent, BOARD_SQUARES_NUM>& new_board, Side new_whose_turn) {
+void Game::set_state(BoardType& new_board, Side new_whose_turn) {
 	m_board = new_board;
 	m_whose_turn = new_whose_turn;
 }
@@ -231,7 +423,11 @@ void Game::find_poss_takes(Pos pos, std::vector<TakeList>& poss_takes, const For
 }
 
 void Game::find_poss_takes_diagonal(Pos curr_pos, Vect2 coeffs, BNT max_range, std::vector<TakeList>& poss_takes, const ForcesType& enemy, Side side) {
-	Pos enemy_pos;
+	Pos enemy_pos,
+		curr_empty_pos;
+	SqContent curr_sq;
+	bool is_king_take = false,
+		became_king = false;
 	
 	for (BNT i = 1; i < max_range + 1; ++i) {
 		enemy_pos = { curr_pos.y + coeffs.y * i, curr_pos.x + coeffs.x * i };
@@ -239,29 +435,30 @@ void Game::find_poss_takes_diagonal(Pos curr_pos, Vect2 coeffs, BNT max_range, s
 			SqContent& enemy_sq = get_square(enemy_pos);
 			if (enemy_sq == enemy.draught or enemy_sq == enemy.king)
 			{
-				Pos curr_empty_pos{ curr_pos.y + coeffs.y * (i + 1), curr_pos.x + coeffs.x * (i + 1) };
+				curr_empty_pos = Pos{ curr_pos.y + coeffs.y * (i + 1), curr_pos.x + coeffs.x * (i + 1) };
 				if (check_coord(curr_empty_pos)){
 					if (get_square(curr_empty_pos) == SqContent::empty_sq) {
 						poss_takes.push_back(TakeList{});
-						
-						SqContent curr_sq;
-						bool is_king_take = false;
-						if (side == Side::black && curr_empty_pos.y == BOARD_SIZE - 1) {
+
+						is_king_take = false,
+						became_king = false;
+
+						if (get_square(curr_pos) == SqContent::black_dr && curr_empty_pos.y == BOARD_SIZE - 1) {
 							curr_sq = SqContent::black_king;
-							is_king_take = true;
+							became_king = true;
 						}
-						else if (side == Side::white && curr_empty_pos.y == 0) {
+						else if (get_square(curr_pos) == SqContent::white_dr && curr_empty_pos.y == 0) {
 							curr_sq = SqContent::white_king;
-							is_king_take = true;
+							became_king = true;
 						}
 						else if (is_king(get_square(curr_pos))) {
 							curr_sq = get_square(curr_pos);
 							is_king_take = true;
 						}
 
-						if (is_king_take) {
+						if (is_king_take || became_king) {
 							deep_take_king(curr_pos, curr_sq, enemy_pos,
-								enemy, poss_takes, poss_takes.size() - 1, 0);
+								enemy, poss_takes, poss_takes.size() - 1, 0, became_king);
 						}
 						else {
 							deep_take_dr(curr_pos, get_square(curr_pos), enemy_pos,
@@ -285,20 +482,29 @@ void Game::deep_take_dr(Pos curr_pos, SqContent curr_dr_type, Pos to_take, const
 		Vect2{ diag_coeffs.y, diag_coeffs.x },
 	};
 
-	//std::cout << std::endl << "(deep_take_dr) curr_pos: " << get_notation(curr_pos)
-	//	<< " to_take: " << get_notation(to_take)
-	//	<< " prev_list_len: " << prev_list_len
-	//	<< std::endl;
+#ifdef DEBUG_DEEP_TAKE_DR
+	std::cout << std::endl << "(deep_take_dr) curr_pos: " << get_notation(curr_pos)
+		<< " to_take: " << get_notation(to_take)
+		<< " prev_list_len: " << prev_list_len
+		<< std::endl;
+	if (poss_takes.size() > DRAUGHTS_NUM) {
+		std::cout << "(deep_take_dr) STOP IT!" << std::endl;
+		exit(666);
+	}
+
+#endif
 
 	Pos curr_empty_pos{ to_take.y + diag_coeffs.y, to_take.x + diag_coeffs.x };
 	TakeNode temp_node{
-		curr_dr_type, get_index(curr_pos),
-		get_index(curr_empty_pos), get_index(to_take), 
+		curr_dr_type, get_index(curr_pos), get_index(curr_empty_pos), 
+		false, get_index(to_take), get_square(to_take)
 	};
 
 	if (!poss_takes[curr_list_ind].add_take(temp_node, prev_list_len)) {
+#ifdef DEBUG_DEEP_TAKE_DR
 		std::cout << "(deep_take_dr) can't add_take &(" << std::endl;
 		std::cout << "(deep_take_dr) curr_list: " << poss_takes[curr_list_ind] << std::endl;
+#endif
 		
 		TakeList temp_takelist;
 		poss_takes[curr_list_ind].copy_list(temp_takelist, prev_list_len);		
@@ -315,17 +521,21 @@ void Game::deep_take_dr(Pos curr_pos, SqContent curr_dr_type, Pos to_take, const
 			curr_empty_pos.x + side_coeffs.x
 		};
 
-		//printf("(deep_take_dr) diag_coeffs: %d %d, side_coeffs: %d %d\n",
-		//	diag_coeffs.y, diag_coeffs.x, side_coeffs.y, side_coeffs.x);
-		//std::cout << "(deep_take_dr) "<< get_notation(curr_pos) 
-		//	<< " poss_enemy_pos: " << get_notation(poss_enemy_pos) << std::endl;
+#ifdef DEBUG_DEEP_TAKE_DR
+		printf("(deep_take_dr) diag_coeffs: %d %d, side_coeffs: %d %d\n",
+			diag_coeffs.y, diag_coeffs.x, side_coeffs.y, side_coeffs.x);
+		std::cout << "(deep_take_dr) "<< get_notation(curr_pos) 
+			<< " poss_enemy_pos: " << get_notation(poss_enemy_pos) << std::endl;
+#endif
 		if (check_coord(poss_enemy_pos)) {
 			SqContent& poss_enemy_sq = get_square(poss_enemy_pos);
-			//printf("(deep_take_dr) is_enemy: %d, !already_taken: %d\n",
-			//	(poss_enemy_sq == enemy.draught or poss_enemy_sq == enemy.king),
-			//	!poss_takes[curr_list_ind].check_already_taken(poss_enemy_pos, prev_list_len));
-			//std::cout << "(deep_take_dr) checked in this list: " 
-			//	<< poss_takes[curr_list_ind] << std::endl;
+#ifdef DEBUG_DEEP_TAKE_DR
+			printf("(deep_take_dr) is_enemy: %d, !already_taken: %d\n",
+				(poss_enemy_sq == enemy.draught or poss_enemy_sq == enemy.king),
+				!poss_takes[curr_list_ind].check_already_taken(poss_enemy_pos, prev_list_len));
+			std::cout << "(deep_take_dr) checked in this list: " << poss_takes[curr_list_ind] 
+				<< "until " << prev_list_len << " elt" << std::endl;
+#endif
 			if ((poss_enemy_sq == enemy.draught or poss_enemy_sq == enemy.king)
 				and !poss_takes[curr_list_ind].check_already_taken(poss_enemy_pos, prev_list_len)) {
 				Pos poss_empty_pos{
@@ -333,27 +543,33 @@ void Game::deep_take_dr(Pos curr_pos, SqContent curr_dr_type, Pos to_take, const
 					poss_enemy_pos.x + side_coeffs.x
 				};
 				if (check_coord(poss_empty_pos)) {
-					//std::cout << "(deep_take_dr) poss_empty_pos: " << get_notation(poss_empty_pos)
-					//	<< " " << (get_square(poss_empty_pos) == SqContent::empty_sq) << std::endl;
+#ifdef DEBUG_DEEP_TAKE_DR
+					std::cout << "(deep_take_dr) poss_empty_pos: " << get_notation(poss_empty_pos)
+						<< " " << (get_square(poss_empty_pos) == SqContent::empty_sq) << std::endl;
+#endif
 					if (get_square(poss_empty_pos) == SqContent::empty_sq) {
 						if (curr_dr_type == SqContent::white_dr 
 							and poss_empty_pos.y == 0) 
 						{
-							//std::cout << "call king" << std::endl;
+#ifdef DEBUG_DEEP_TAKE_DR
+							std::cout << "(deep_take_dr) call king" << std::endl;
+#endif
 							deep_take_king(curr_empty_pos, SqContent::white_king, poss_enemy_pos, 
-								enemy, poss_takes, curr_list_ind, prev_list_len);
-							//deep_take_king(curr_empty_pos, SqContent::white_king, poss_enemy_pos, 
-							//	enemy, poss_takes, curr_list_ind, curr_list.length());
+								enemy, poss_takes, curr_list_ind, prev_list_len, true);
 						}
 						else if (curr_dr_type == SqContent::black_dr 
 							and poss_empty_pos.y == BOARD_SIZE - 1) 
 						{
-							//std::cout << "call king" << std::endl;
+#ifdef DEBUG_DEEP_TAKE_DR
+							std::cout << "call king" << std::endl;
+#endif
 							deep_take_king(curr_empty_pos, SqContent::black_king, poss_enemy_pos, 
-								enemy, poss_takes, curr_list_ind, prev_list_len);
+								enemy, poss_takes, curr_list_ind, prev_list_len, true);
 						}
 						else {
-							//std::cout << "call pathethic creature" << std::endl;
+#ifdef DEBUG_DEEP_TAKE_DR
+							std::cout << "call pathethic creature" << std::endl;
+#endif
 							deep_take_dr(curr_empty_pos, curr_dr_type, poss_enemy_pos, enemy,
 								poss_takes, curr_list_ind, prev_list_len);
 						}
@@ -364,7 +580,7 @@ void Game::deep_take_dr(Pos curr_pos, SqContent curr_dr_type, Pos to_take, const
 	}
 }
 
-void Game::deep_take_king(Pos curr_pos, SqContent curr_dr_type, Pos to_take, const ForcesType& enemy, std::vector<TakeList>& poss_takes, BNT curr_list_ind, BNT prev_list_len) {
+void Game::deep_take_king(Pos curr_pos, SqContent curr_dr_type, Pos to_take, const ForcesType& enemy, std::vector<TakeList>& poss_takes, BNT curr_list_ind, BNT prev_list_len, bool became_king) {
 	BNT initial_prev_list_len = prev_list_len;
 	Vect2 diag_coeffs = make_diag_coeffs(curr_pos, to_take),
 		iter_coeffs[]{
@@ -372,10 +588,21 @@ void Game::deep_take_king(Pos curr_pos, SqContent curr_dr_type, Pos to_take, con
 		Vect2{diag_coeffs.y, -diag_coeffs.x},
 		Vect2{diag_coeffs.y, diag_coeffs.x},
 	};
-	//std::cout << std::endl << "(deep_take_king) curr_pos: " << get_notation(curr_pos)
-	//	<< " to_take: " << get_notation(to_take) 
-	//	<< " prev_list_len: " << prev_list_len 
-	//	<< std::endl;
+#ifdef DEBUG_DEEP_TAKE_KING
+	std::cout << std::endl << "(deep_take_king) curr_pos: " << get_notation(curr_pos)
+		<< " to_take: " << get_notation(to_take) 
+		<< " prev_list_len: " << prev_list_len 
+		<< std::endl;
+	std::cout << "(deep_take_king) poss_takes:" << std::endl;
+	for (auto& elt : poss_takes) {
+		std::cout << elt << std::endl;
+	}
+
+	if (poss_takes.size() > DRAUGHTS_NUM) {
+		std::cout << "(deep_take_dr) STOP IT!" << std::endl;
+		exit(666);
+	}
+#endif
 
 	Pos curr_empty_pos{ to_take.y + diag_coeffs.y, to_take.x + diag_coeffs.x };
 
@@ -389,26 +616,33 @@ void Game::deep_take_king(Pos curr_pos, SqContent curr_dr_type, Pos to_take, con
 		};
 		if (!check_coord(curr_start_pos)) { break; }
 		if (get_square(curr_start_pos) != SqContent::empty_sq) { break; }
-		//std::cout << "curr_start_pos: " << get_notation(curr_start_pos)
-		//	<< std::endl;
+#ifdef DEBUG_DEEP_TAKE_KING
+		std::cout << "curr_start_pos: " << get_notation(curr_start_pos)
+			<< std::endl;
+#endif
 
 		for (auto& side_coeffs : iter_coeffs) {
 			curr_prev_list_len = initial_prev_list_len;
-			//printf("(deep_take_king) diag_coeffs: %d %d, side_coeffs: %d %d\n",
-			//	diag_coeffs.y, diag_coeffs.x, side_coeffs.y, side_coeffs.x);
+#ifdef DEBUG_DEEP_TAKE_KING
+			printf("(deep_take_king) diag_coeffs: %d %d, side_coeffs: %d %d\n",
+				diag_coeffs.y, diag_coeffs.x, side_coeffs.y, side_coeffs.x);
+#endif
 			for (BNT k = 1; k < m_king_max_take_range; ++k) {
 				poss_enemy_pos = Pos{
 					curr_start_pos.y + side_coeffs.y * k,
 					curr_start_pos.x + side_coeffs.x * k
 				};
-
-				//std::cout << "(deep_take_king) curr_start_pos: " << get_notation(curr_start_pos)
-				//	<< " poss_enemy_pos: " << get_notation(poss_enemy_pos) << std::endl;
+#ifdef DEBUG_DEEP_TAKE_KING
+				std::cout << "(deep_take_king) curr_start_pos: " << get_notation(curr_start_pos)
+					<< " poss_enemy_pos: " << get_notation(poss_enemy_pos) << std::endl;
+#endif
 				if (check_coord(poss_enemy_pos)) {
 					SqContent& poss_enemy_sq = get_square(poss_enemy_pos);
-					//printf("(deep_take_king) is_enemy: %d, !already_taken: %d\n",
-					//	(poss_enemy_sq == enemy.draught or poss_enemy_sq == enemy.king),
-					//	!poss_takes[curr_list_ind].check_already_taken(poss_enemy_pos, prev_list_len));
+#ifdef DEBUG_DEEP_TAKE_KING
+					printf("(deep_take_king) is_enemy: %d, !already_taken: %d (%d)\n",
+						(poss_enemy_sq == enemy.draught or poss_enemy_sq == enemy.king),
+						!poss_takes[curr_list_ind].check_already_taken(poss_enemy_pos, prev_list_len), prev_list_len);
+#endif
 					if ((poss_enemy_sq == enemy.draught or poss_enemy_sq == enemy.king)) {
 						if (!poss_takes[curr_list_ind].check_already_taken(poss_enemy_pos, prev_list_len)) {
 							poss_empty_pos = Pos{
@@ -416,66 +650,77 @@ void Game::deep_take_king(Pos curr_pos, SqContent curr_dr_type, Pos to_take, con
 								poss_enemy_pos.x + side_coeffs.x
 							};
 							if (check_coord(poss_empty_pos)) {
-								//std::cout << "(deep_take_king) poss_empty_pos: " << get_notation(poss_empty_pos)
-								//	<< " " << (get_square(poss_empty_pos) == SqContent::empty_sq) << std::endl;
+#ifdef DEBUG_DEEP_TAKE_KING
+								std::cout << "(deep_take_king) poss_empty_pos: " << get_notation(poss_empty_pos)
+									<< " " << (get_square(poss_empty_pos) == SqContent::empty_sq) << std::endl;
+#endif
 								if (get_square(poss_empty_pos) == SqContent::empty_sq) {
 									TakeNode temp_node{
-										curr_dr_type, get_index(curr_pos),
-										get_index(curr_empty_pos), get_index(to_take),
+										curr_dr_type, get_index(curr_pos), get_index(curr_start_pos),
+										became_king, get_index(to_take), get_square(to_take)
 									};
-									
 									if (!poss_takes[curr_list_ind].add_take(temp_node, prev_list_len)) {
-										//std::cout << "(deep_take_king) can't add_take &(" << std::endl;
-										//std::cout << "(deep_take_king) poss_takes BEF:" << std::endl;
-										//for (auto& elt : poss_takes) {
-										//	std::cout << elt << std::endl;
-										//}
-										
+#ifdef DEBUG_DEEP_TAKE_KING
+										std::cout << "(deep_take_king) can't add_take &(" << std::endl;
+										std::cout << "(deep_take_king) poss_takes BEF:" << std::endl;
+										for (auto& elt : poss_takes) {
+											std::cout << elt << std::endl;
+										}
+#endif
+	
 										TakeList temp_takelist;
 										poss_takes[curr_list_ind].copy_list(temp_takelist, prev_list_len + add_takes);
 										if (add_takes) {
-											//std::cout << "NEW RULE WORKING" << std::endl;
+#ifdef DEBUG_DEEP_TAKE_KING
+											std::cout << "NEW RULE WORKING" << std::endl;
+#endif
 											temp_takelist.correct_last_empty_pos(curr_start_pos);
 										}
-										//std::cout << "YES!!!" << std::endl;
+										temp_takelist.add_take(temp_node, prev_list_len);
 										poss_takes.push_back(temp_takelist);
 										curr_list_ind = poss_takes.size() - 1;
 										
-										//std::cout << "(deep_take_king) poss_takes AFT:" << std::endl;
-										//for (auto& elt : poss_takes) {
-										//	std::cout << elt << std::endl;
-										//}
-										//std::cout << "(deep_take_king) curr_list_ind: " << curr_list_ind
-										//	<< " prev_list_len: " << prev_list_len << std::endl;
-										//std::cout << "(deep_take_king) size: " << poss_takes.size()
-										//	<< " capacity: " << poss_takes.capacity() << std::endl;
+#ifdef DEBUG_DEEP_TAKE_KING
+										std::cout << "(deep_take_king) poss_takes AFT:" << std::endl;
+										for (auto& elt : poss_takes) {
+											std::cout << elt << std::endl;
+										}
+										std::cout << "(deep_take_king) curr_list_ind: " << curr_list_ind
+											<< " prev_list_len: " << prev_list_len << std::endl;
+										std::cout << "(deep_take_king) poss_takes: size " << poss_takes.size()
+											<< " capacity " << poss_takes.capacity() << std::endl;
+#endif
 									}
+									add_takes = true;
 
 									deep_take_king(curr_start_pos, curr_dr_type, poss_enemy_pos, enemy,
-										poss_takes, curr_list_ind, prev_list_len + 1);
-									add_takes = true;
+										poss_takes, curr_list_ind, prev_list_len + add_takes, false);
+									//deep_take_king(curr_start_pos, curr_dr_type, poss_enemy_pos, enemy,
+									//	poss_takes, curr_list_ind, prev_list_len + 1, false);
 									break;
 								}
 								else { break; }
 							}
 							else { break; }
-							//else { break_side = true; }
 						}
 						else { break; }
-						//else { break_side = true; }
 					}
 					// if on this square our forces (draught or king)
 					else if (poss_enemy_sq != SqContent::empty_sq) { break; }
-					//else if (poss_enemy_sq != SqContent::empty_sq) { break_side = true; }
 				}
 				else { break; }
-				//else { break_side = true; }
 			}
 		}
 	}
 
 	if (!add_takes) {
-		//std::cout << "(deep_take_king) No ADD TAKINGS" << std::endl;
+#ifdef DEBUG_DEEP_TAKE_KING
+		std::cout << "(deep_take_king) No ADD TAKINGS" << std::endl;
+#endif
+		if (poss_takes[curr_list_ind].length()) {
+			poss_takes[curr_list_ind].correct_last_empty_pos(curr_pos);
+		}
+
 		for (BNT i = 1; i < m_king_max_take_range; ++i) {
 			curr_empty_pos = Pos{
 				to_take.y + diag_coeffs.y * i,
@@ -485,40 +730,50 @@ void Game::deep_take_king(Pos curr_pos, SqContent curr_dr_type, Pos to_take, con
 			if (get_square(curr_empty_pos) != SqContent::empty_sq) { break; }
 
 			TakeNode temp_node{
-				curr_dr_type, get_index(curr_pos),
-				get_index(curr_empty_pos), get_index(to_take),
+				curr_dr_type, get_index(curr_pos), get_index(curr_empty_pos), 
+				became_king, get_index(to_take), get_square(to_take)
 			};
 
+#ifdef DEBUG_DEEP_TAKE_KING
+			std::cout << "(deep_take_king) curr temp_node:" << temp_node << std::endl;
+			std::cout << "(deep_take_king) prev_list_len:" << prev_list_len << std::endl;
+#endif
 			if (!poss_takes[curr_list_ind].add_take(temp_node, prev_list_len)) {
-				//std::cout << "(deep_take_king) can't add_take &(" << std::endl;
-				//std::cout << "(deep_take_king) poss_takes BEF:" << std::endl;
-				//for (auto& elt : poss_takes) {
-				//	std::cout << elt << std::endl;
-				//}
-	
+#ifdef DEBUG_DEEP_TAKE_KING
+				std::cout << "(deep_take_king) can't add_take &(" << std::endl;
+				std::cout << "(deep_take_king) poss_takes BEF:" << std::endl;
+				for (auto& elt : poss_takes) {
+					std::cout << elt << std::endl;
+				}
+#endif
+
 				TakeList temp_takelist;
 				poss_takes[curr_list_ind].copy_list(temp_takelist, prev_list_len);
-				//std::cout << "YES!!!" << std::endl;
+				temp_takelist.add_take(temp_node, prev_list_len);
+
 				poss_takes.push_back(temp_takelist);
 				curr_list_ind = poss_takes.size() - 1;
 	
-				//std::cout << "(deep_take_king) poss_takes AFT:" << std::endl;
-				//for (auto& elt : poss_takes) {
-				//	std::cout << elt << std::endl;
-				//}
-				//std::cout << "(deep_take_king) curr_list_ind: " << curr_list_ind
-				//	<< " prev_list_len: " << prev_list_len << std::endl;
-				//std::cout << "(deep_take_king) size: " << poss_takes.size()
-				//	<< " capacity: " << poss_takes.capacity() << std::endl;
+#ifdef DEBUG_DEEP_TAKE_KING
+				std::cout << "(deep_take_king) curr_list_ind: " << curr_list_ind
+					<< " prev_list_len: " << prev_list_len << std::endl;
+				std::cout << "(deep_take_king) size: " << poss_takes.size()
+					<< " capacity: " << poss_takes.capacity() << std::endl;
+#endif
 			}
-
+#ifdef DEBUG_DEEP_TAKE_KING
+			std::cout << "(deep_take_king) final poss_takes:" << std::endl;
+			for (auto& elt : poss_takes) {
+				std::cout << elt << std::endl;
+			}
+#endif
 		}
 	}
 }
 
 void Game::find_poss_moves(Pos pos, std::vector<Move>& poss_moves, Side side) {
 	SqContent& curr_sq = get_square(pos);
-	Pos coords;
+
 	if (is_draught(curr_sq)) {
 		find_poss_moves_dr(pos, poss_moves, curr_sq, side);
 	}
@@ -530,11 +785,17 @@ void Game::find_poss_moves(Pos pos, std::vector<Move>& poss_moves, Side side) {
 void Game::find_poss_moves_dr(Pos pos, std::vector<Move>& poss_moves, SqContent curr_sq, Side side) {
 	BNT row_add = (side == Side::white) ? row_add = -1 : row_add = 1;
 	Pos poss_empty_pos;
+	bool became_king;
 
 	for (BNT j : { -1, 1 }) {
-		Pos poss_empty_pos = Pos{ pos.y + row_add, pos.x + j };
-		if (can_move_on_square(poss_empty_pos)) {
-			poss_moves.push_back(Move{ curr_sq, get_index(pos), get_index(poss_empty_pos) });
+		poss_empty_pos = Pos{ pos.y + row_add, pos.x + j };
+		if (can_move_on_square(poss_empty_pos)) 
+		{
+			became_king = (side == Side::white && poss_empty_pos.y == 0) 
+				|| (side == Side::black && poss_empty_pos.y == BOARD_SIZE - 1);
+			poss_moves.push_back(Move{
+				curr_sq, get_index(pos), get_index(poss_empty_pos), became_king 
+			});
 		}
 	}
 }
@@ -542,14 +803,13 @@ void Game::find_poss_moves_dr(Pos pos, std::vector<Move>& poss_moves, SqContent 
 void Game::find_poss_moves_king(Pos pos, std::vector<Move>& poss_moves, SqContent curr_sq, Side side) {
 	Pos poss_empty_pos;
 
-	std::cout << "(find_poss_moves_king)" << std::endl;
 	for (BNT i : { -1, 1 }) {
 		for (BNT j : { -1, 1 }) {
-			for (BNT k = 0; k < BOARD_SIZE - 1; ++k) {
+			for (BNT k = 1; k < BOARD_SIZE - 1; ++k) {
 				poss_empty_pos = Pos{ pos.y + i * k, pos.x + j * k };
 				if (can_move_on_square(poss_empty_pos)) {
 					poss_moves.push_back(
-						Move{ curr_sq, get_index(pos), get_index(poss_empty_pos) }
+						Move{ curr_sq, get_index(pos), get_index(poss_empty_pos), false }
 					);
 				}
 				else { break; }
@@ -558,25 +818,106 @@ void Game::find_poss_moves_king(Pos pos, std::vector<Move>& poss_moves, SqConten
 	}
 }
 
-inline bool Game::can_move_on_square(Pos square_to_move_pos) {
-	return check_coord(square_to_move_pos) && get_square(square_to_move_pos) == SqContent::empty_sq;
+inline bool Game::can_move_on_square(Pos square_to_move_pos) const {
+	return check_coord(square_to_move_pos) && get_square_c(square_to_move_pos) == SqContent::empty_sq;
 }
 
-void Game::make_move(Move& move)
+void Game::make_move(const Move& move)
 {
-	m_board[move.to] = m_board[move.from];
 	m_board[move.from] = SqContent::empty_sq;
+	m_board[move.to] = (move.became_king) ? get_king(move.who) : move.who;
 }
 
-void Game::make_take(TakeList& take_list) {
+void Game::make_take(const TakeList& take_list) {
+#ifdef DEBUG_MAKE_TAKE
+	std::cout << std::endl;
+	std::cout << "(unmake_take) VERY START: " << std::endl;
+	std::cout << "(unmake_take) takelist: " << take_list << std::endl;
+	print_board();
+#endif
 	for (auto& take : take_list.get_list()) {
-		//std::cout << "(make_take) who: "
-		//	<< " is_draught:" << is_draught(take.who)
-		//	<< " is_king:" << is_king(take.who)
-		//	<< std::endl;
-		m_board[take.to] = take.who;
+#ifdef DEBUG_MAKE_TAKE
+		std::cout << std::endl;
+		std::cout << "(make_take) bef: " << std::endl;
+		print_board();
+		std::cout << "(make_take): "
+			<< " take: " << take
+			<< " is_draught:" << is_draught(take.who)
+			<< " is_king:" << is_king(take.who)
+			<< " is_became_king:" << take.became_king
+			<< std::endl;
+#endif
 		m_board[take.from] = SqContent::empty_sq;
-		m_board[take.taken] = SqContent::empty_sq;
+		m_board[take.to] = take.who;
+		m_board[take.taken_ind] = SqContent::empty_sq;
+#ifdef DEBUG_MAKE_TAKE
+		std::cout << "(make_take) aft: " << std::endl;
+		print_board();
+#endif
+	}
+#ifdef DEBUG_MAKE_TAKE
+	std::cout << "(make_take) aft: " << std::endl;
+	print_board();
+#endif
+}
+
+void Game::unmake_move(const Move& move)
+{
+	m_board[move.from] = (is_king(move.who) && move.became_king) ? get_draught(move.who) : move.who;
+	m_board[move.to] = SqContent::empty_sq;
+}
+
+void Game::unmake_take(const TakeList& take_list) {
+	bool became_king = false;
+	auto& curr_list = take_list.get_list();
+
+#ifdef DEBUG_UNMAKE_TAKE
+	std::cout << std::endl;
+	std::cout << "(unmake_take) VERY START: " << std::endl;
+	std::cout << "(unmake_take) takelist: " << take_list << std::endl;
+	print_board();
+#endif
+	for (auto& take : take_list.get_list()) {
+#ifdef DEBUG_UNMAKE_TAKE
+		std::cout << std::endl;
+		std::cout << "(unmake_take) bef: " << std::endl;
+		print_board();
+		std::cout << "(unmake_take): "
+			<< " take: " << take
+			<< " is_draught:" << is_draught(take.who)
+			<< " is_king:" << is_king(take.who)
+			<< " is_became_king:" << take.became_king
+			<< std::endl;
+#endif
+		m_board[take.taken_ind] = take.taken_cont;
+		became_king |= take.became_king;
+#ifdef DEBUG_UNMAKE_TAKE
+		std::cout << "(unmake_take) aft: " << std::endl;
+		print_board();
+#endif
+	}
+
+	auto& first_take = curr_list.front();
+	auto& last_take = curr_list.back();
+	m_board[first_take.from] = (is_king(last_take.who) && became_king) ? get_draught(last_take.who) : last_take.who;
+	m_board[last_take.to] = SqContent::empty_sq;
+
+#ifdef DEBUG_UNMAKE_TAKE
+	std::cout << std::endl;
+	std::cout << "(unmake_take) VERY END: " << std::endl;
+	print_board();
+#endif
+}
+
+Side Game::get_winner(BoardType& endgame_board) {
+	for (int i = 0; i < BOARD_SQUARES_NUM; ++i) {
+		SqContent& curr_sq = endgame_board[i];
+		if (curr_sq == SqContent::white_dr || curr_sq == SqContent::white_king) {
+			return Side::white;
+		}
+		else if (curr_sq == SqContent::white_dr || curr_sq == SqContent::white_king) {
+			return Side::black;
+		}
 	}
 }
 
@@ -598,27 +939,37 @@ inline bool Game::check_coord(Pos pos) const {
 	return (0 <= pos.y && pos.y < BOARD_SIZE) && (0 <= pos.x && pos.x < BOARD_SIZE);
 }
 
-inline Side Game::get_opponent() const {
-	return static_cast<Side>(!static_cast<bool>(m_whose_turn));
+inline Side Game::get_opponent(Side side) {
+	return static_cast<Side>(!static_cast<bool>(side));
 }
 
-inline std::string Game::get_notation(Pos pos) {
+std::string Game::get_notation(Pos pos) {
 	return std::string{ static_cast<char>('a' + pos.x) } + std::to_string(BOARD_SIZE - pos.y);
 };
 
-inline std::string Game::get_notation(BNT index) {
+std::string Game::get_notation(BNT index) {
 	return get_notation(Pos{ index / BOARD_SIZE, index % BOARD_SIZE});
 }
 
-inline bool Game::is_draught(SqContent smth) {
+inline bool Game::is_draught(SqContent smth) const {
 	return smth == SqContent::white_dr or smth == SqContent::black_dr;
 }
 
-inline bool Game::is_king(SqContent smth) {
+inline bool Game::is_king(SqContent smth) const {
 	return smth == SqContent::white_king or smth == SqContent::black_king;
 }
 
-inline Vect2 Game::make_diag_coeffs(Pos from, Pos to) {
+// get king SqContent piece from king of the same side
+inline SqContent Game::get_draught(SqContent king) const {
+	return (king == SqContent::white_king) ? SqContent::white_dr : SqContent::black_dr;
+}
+
+// get king SqContent piece from draught of the same side
+inline SqContent Game::get_king(SqContent draught) const {
+	return (draught == SqContent::white_dr) ? SqContent::white_king : SqContent::black_king;
+}
+
+inline Vect2 Game::make_diag_coeffs(Pos from, Pos to) const {
 	return Vect2{
 		(to.y - from.y) / static_cast<BNT>(abs(to.y - from.y)),
 		(to.x - from.x) / static_cast<BNT>(abs(to.x - from.x))
@@ -631,6 +982,7 @@ bool TakeList::add_take(TakeNode take, BNT control_length) {
 	//	<< ", real size: " << m_takes.size() 
 	//	<< std::endl;
 
+	//if (m_takes.size() >= control_length) { // test solution for problem
 	if (m_takes.size() == control_length) {
 		m_takes.push_back(take);
 		return true;
@@ -652,8 +1004,16 @@ bool TakeList::check_already_taken(Pos pos, BNT check_len) const {
 	BNT taken_ind = Game::get_index(pos),
 		for_cnt = 0;
 	for (auto take_iter = m_takes.begin(); for_cnt < check_len && take_iter != m_takes.end(); ++take_iter, ++for_cnt) {
-		if (take_iter->taken == taken_ind) { return true; }
-		++for_cnt;
+#ifdef DEBUG_ALREADY_TAKEN
+		std::cout << "(ch_alrd_taken) "
+			<< "(" << for_cnt
+			<< "/" << check_len << ") "
+			<< Game::get_notation(take_iter->taken_ind)
+			<< "=="
+			<< Game::get_notation(taken_ind)
+			<< std::endl;
+#endif
+		if (take_iter->taken_ind == taken_ind) { return true; }
 	}
 	return false;
 }
@@ -680,6 +1040,7 @@ std::ostream& operator<< (std::ostream& outs, const TakeList& takelist) {
 
 std::ostream& operator<< (std::ostream& outs, const TakeNode& takenode) {
 	return outs << "|" << Game::get_notation(takenode.from) 
+		<< "--" << Game::get_notation(takenode.taken_ind) 
 		<< "->" << Game::get_notation(takenode.to) 
 		<< "| ";
 }
