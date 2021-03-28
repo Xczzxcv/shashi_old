@@ -7,14 +7,14 @@
 
 namespace DraughtsGame {
 using BNT = short; // Board Numeric Type
-using AIResult = std::pair<BNT, BNT>; // 1. index in sequence 2. position score
 const BNT BOARD_SIZE = 8; // must be even and >2
 const BNT BOARD_SQUARES_NUM = BOARD_SIZE * BOARD_SIZE;
-const BNT ENGAGED_LINES = BOARD_SIZE / 2 - 1; // number for one side
-const BNT DRAUGHTS_NUM = ENGAGED_LINES * BOARD_SIZE;
+const BNT OCCUPIED_LINES = BOARD_SIZE / 2 - 1; // number for one side
+const BNT DRAUGHTS_NUM = OCCUPIED_LINES * BOARD_SIZE / 2;
+const BNT POSS_VARIANTS_SIZE = DRAUGHTS_NUM * 2;
 //const BNT MAX_MOVES = BOARD_SQUARES_NUM; // just took it from my mind 
 const BNT MAX_NEXT_TAKES = 3; // forward, right, left
-const BNT CALCULATION_LVL = 2; // for min-max algorithm
+const BNT CALCULATION_LVL = 4; // for min-max algorithm
 
 enum class SqContent : char { 
 	white_sq, white_dr, white_king,
@@ -87,9 +87,11 @@ private:
 	void make_take(const TakeList& take_list);
 	void unmake_move(const Move& move);
 	void unmake_take(const TakeList& take_list);
-	BNT position_analysis(BoardType& board, Side side);
-	AIResult AI(BNT deep_lvl, Side ai_side, Side side);
+	BNT position_analysis(BoardType& board);
+	BNT think(Side curr_side);
+	BNT AI(BNT deep_lvl, Side ai_side, Side curr_side);
 	inline Side get_winner(BoardType& endgame_board);
+	inline Pos get_pos(BNT index);
 	inline SqContent& get_square(Pos pos);
 	inline const SqContent& get_square_c(Pos pos) const;
 	inline bool check_coord(Pos pos) const;

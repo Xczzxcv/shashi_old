@@ -5,6 +5,7 @@
 #include <ctime>
 #include <algorithm>
 #include <cstdlib>
+#include <limits>
 #include "Game.hpp"
 
 //#define DEBUG_DEEP_TAKE_KING
@@ -12,9 +13,11 @@
 //#define DEBUG_UNMAKE_TAKE
 //#define DEBUG_MAKE_TAKE
 //#define DEBUG_ALREADY_TAKEN
-#define DEBUG_AI
+//#define DEBUG_AI
+//#define DEBUG_THINK
 
 namespace DraughtsGame {
+static long num_of_leaves = 0;
 
 Game::Game() : 
 	m_whose_turn(Side::white)
@@ -27,21 +30,30 @@ void Game::main_loop() {
 	std::vector<Move> poss_moves;
 	std::vector<TakeList> poss_takes;
 
-	poss_moves.reserve(DRAUGHTS_NUM);
-	poss_takes.reserve(DRAUGHTS_NUM);
+	poss_moves.reserve(POSS_VARIANTS_SIZE);
+	poss_takes.reserve(POSS_VARIANTS_SIZE);
 
 	SqContent e = SqContent::empty_sq, s = SqContent::white_sq,
 		b = SqContent::black_dr, B = SqContent::black_king,
 		w = SqContent::white_dr, W = SqContent::white_king;
 	BoardType new_board{
-		s,e,s,e,s,e,s,e,
-		e,s,e,s,e,s,b,s,
-		s,e,s,e,s,e,s,e,
-		b,s,e,s,b,s,e,s,
-		s,e,s,e,s,e,s,e,
+		s,W,s,b,s,e,s,e,
+		e,s,e,s,e,s,e,s,
+		s,b,s,e,s,e,s,e,
 		w,s,e,s,e,s,e,s,
-		s,w,s,e,s,e,s,w,
-		w,s,w,s,w,s,w,s,
+		s,e,s,e,s,b,s,b,
+		w,s,e,s,e,s,e,s,
+		s,w,s,e,s,e,s,e,
+		e,s,w,s,w,s,e,s,
+		//
+		//s,e,s,e,s,b,s,e,
+		//e,s,e,s,e,s,e,s,
+		//s,e,s,e,s,e,s,e,
+		//e,s,w,s,e,s,W,s,
+		//s,e,s,e,s,e,s,w,
+		//e,s,w,s,e,s,e,s,
+		//s,e,s,e,s,e,s,e,
+		//w,s,e,s,e,s,B,s,
 		//
 		//s,e,s,e,s,e,s,e,
 		//W,s,e,s,e,s,b,s,
@@ -107,26 +119,24 @@ void Game::main_loop() {
 		//e,s,e,s,e,s,e,s,
 	};
 
-	//set_state(new_board, Side::white);
+	//set_state(new_board, Side::black);
 
 	std::cout << "GAME STARTS!" << std::endl;
+	std::cout << "position analysis:" << position_analysis(m_board) << std::endl;
 	print_board(true);
+	std::cin.get();
 
 	while (m_game_is_on) {
 
 		find_poss_variants(m_whose_turn, poss_moves, poss_takes);
-		std::cout << "size: " 
-			<< "takes: " << poss_takes.size() 
-			<< " moves: " << poss_moves.size() 
-			<< " analyze: " << position_analysis(m_board, m_whose_turn)
-			<< std::endl;
+		num_of_leaves = 0;
 		if (poss_takes.size()) {
 			//for (BNT i = 0; i < poss_takes.size(); ++i) {
 			//	TakeList& curr_takelist = poss_takes[i];
 			//	std::cout << i << "| " << curr_takelist << std::endl;
 			//}
 
-			make_take(poss_takes[AI(0, m_whose_turn, m_whose_turn).first]);
+			make_take(poss_takes[think(m_whose_turn)]);
 		}
 		else if (poss_moves.size()) {
 			//for (BNT i = 0; i < poss_moves.size(); ++i) {
@@ -134,7 +144,7 @@ void Game::main_loop() {
 			//	std::cout << i << "| " << curr_move << std::endl;
 			//}
 
-			make_move(poss_moves[AI(0, m_whose_turn, m_whose_turn).first]);
+			make_move(poss_moves[think(m_whose_turn)]);
 		}
 		else {
 			std::cout << "END" << std::endl;
@@ -143,7 +153,10 @@ void Game::main_loop() {
 			m_winner_text = (m_whose_turn == Side::black) ? "White" : "Black";
 		}
 
+		std::cout << "leaves analyzed:" << num_of_leaves << std::endl;
+		std::cout << "position analysis:" << position_analysis(m_board) << std::endl;
 		std::cout << "NOW POSITION IS:" << std::endl;
+
 		print_board(true);
 		std::cin.get();
 
@@ -195,51 +208,172 @@ void Game::print_board(bool is_big) const {
 	}
 }
 
-BNT Game::position_analysis(BoardType& board, Side side) {
-	static BNT draught_val = 1;
-	static BNT king_val = 3;
-	static BNT endgame_val = 1000; // if win or lose
-	BNT our_score = 0, 
-		their_score = 0;
-	ForcesType we, enemy;
-
-	if (true) {
-	//if (side == Side::white) {
-		we = ForcesType{ SqContent::white_dr, SqContent::white_king };
-		enemy = ForcesType{ SqContent::black_dr, SqContent::black_king };
-	}
-	else {
-		we = ForcesType{ SqContent::black_dr, SqContent::black_king };
-		enemy = ForcesType{ SqContent::white_dr, SqContent::white_king };
-	}
+BNT Game::position_analysis(BoardType& board) {
+	static const std::array<BNT, BOARD_SQUARES_NUM> white_pos_heat_map = {
+		0, +1, 0, +1, 0, +1, 0, +1,
+		-1, 0, +2, 0, +2, 0, +1, 0,
+		0, +1, 0, +2, 0, +2, 0, -1,
+		-1, 0, +3, 0, +2, 0, +1, 0,
+		0, +2, 0, +2, 0, +3, 0, -1,
+		-1, 0, +2, 0, +2, 0, +1, 0,
+		0, +1, 0, +2, 0, +2, 0, -2,
+		-2, 0, +1, 0, +3, 0, +1, 0,
+	};
+	static const std::array<BNT, BOARD_SQUARES_NUM> black_pos_heat_map = {
+		0, +1, 0, +3, 0, +1, 0, -2,
+		-2, 0, +2, 0, +2, 0, +1, 0,
+		0, +1, 0, +2, 0, +2, 0, -1,
+		-1, 0, +3, 0, +2, 0, +2, 0,
+		0, +1, 0, +2, 0, +3, 0, -1,
+		-1, 0, +2, 0, +2, 0, +1, 0,
+		0, +1, 0, +2, 0, +2, 0, -1,
+		+1, 0, +1, 0, +1, 0, +1, 0, 
+	};
+	static const BNT temp_val = 4; // value of one temp
+	static const BNT draught_val = temp_val * 3;
+	static const BNT king_val = draught_val * 3;
+	static const BNT endgame_val = 10000; // if win or lose
+	static const BNT count_temps_forces_num = DRAUGHTS_NUM * 2 / 3; // num of forces by side
+	BNT white_draughts = 0, black_draughts = 0,
+		white_kings = 0, black_kings = 0,
+		white_temps = 0, black_temps = 0,
+		white_pos_score = 0, black_pos_score = 0;
+	ForcesType white{ SqContent::white_dr, SqContent::white_king },
+		black = { SqContent::black_dr, SqContent::black_king };
 
 	for (BNT i = 0; i < BOARD_SQUARES_NUM; ++i) {
-		if (m_board[i] == we.draught) { our_score += draught_val; }
-		else if (m_board[i] == we.king) { our_score += king_val; }
-		else if (m_board[i] == enemy.draught) { their_score += draught_val; }
-		else if (m_board[i] == enemy.king) { their_score += king_val; }
+		if (m_board[i] == white.draught) { 
+			++white_draughts;
+			white_pos_score += white_pos_heat_map[i];
+			white_temps += BOARD_SIZE - 1 - get_pos(i).y;
+			//++white_forces_cnt;
+		}
+		else if (m_board[i] == white.king) { 
+			++white_kings; 
+			white_temps += BOARD_SIZE - 1;
+			//++white_forces_cnt;
+		}
+		else if (m_board[i] == black.draught) { 
+			++black_draughts; 
+			black_pos_score += black_pos_heat_map[i];
+			black_temps += get_pos(i).y;
+		}
+		else if (m_board[i] == black.king) { 
+			++black_kings;
+			black_temps += BOARD_SIZE - 1;
+		}
 	}
 
-	if (our_score == 0) { // if no our forces is on board
+	if (white_draughts + white_kings == 0) { // if no white forces is on board
 		return -endgame_val;
 	}
-	else if (their_score == 0) { // if no their forces is on board
+	else if (black_draughts + black_kings == 0) { // if no black forces is on board
 		return endgame_val;
 	}
 	else {
-		return our_score - their_score;
+		BNT white_sum_score = white_draughts * draught_val + white_kings * king_val;
+		BNT black_sum_score = black_draughts * draught_val + black_kings * king_val;
+		float score_coeff = std::max(white_sum_score, black_sum_score)
+			/ static_cast<float>(std::min(white_sum_score, black_sum_score));
+
+		white_sum_score += white_pos_score;
+		black_sum_score += black_pos_score;
+
+		if ((white_draughts + white_kings) + (black_draughts + black_kings)
+			<= count_temps_forces_num * 2)
+		{
+			white_sum_score += white_temps * temp_val;
+			black_sum_score += black_temps * temp_val;
+		}
+
+		// bigger difference between side scores — worse (or better) result
+		// for example 200 - 140 (3-4 vs. 2-3 draughts) was equal to 90 - 30  (3 vs. 1 dr.)
+		// now second option will be more valueable
+		return (white_sum_score - black_sum_score)
+			* static_cast<BNT>(score_coeff);
 	}
 }
 
-// min-max algorithm
-AIResult Game::AI(BNT deep_lvl, Side ai_side, Side curr_side) {
-	AIResult final_result;
+BNT Game::think(Side curr_side) {
+	BNT final_index,
+		temp_result;
+	BNT curr_max = std::numeric_limits<BNT>::min(),
+		index_max = -1,
+		for_ind = 0;
 	std::vector<Move> poss_moves;
 	std::vector<TakeList> poss_takes;
-	std::vector<AIResult> analyze_results;
+#ifdef DEBUG_THINK
+	std::string tab(1, 204);
+#endif
 
-	poss_moves.reserve(DRAUGHTS_NUM);
-	poss_takes.reserve(DRAUGHTS_NUM);
+	poss_moves.reserve(POSS_VARIANTS_SIZE);
+	poss_takes.reserve(POSS_VARIANTS_SIZE);
+
+	find_poss_variants(curr_side, poss_moves, poss_takes);
+
+	if (poss_takes.size()) {
+		for (auto take_iter = poss_takes.begin(); take_iter != poss_takes.end(); ++take_iter, ++for_ind) {
+			auto& take = *take_iter;
+#ifdef DEBUG_THINK
+			std::cout << tab << "(think) take: " << take << std::endl;
+			print_board();
+			std::cout << std::endl;
+#endif
+			make_take(take);
+#ifdef DEBUG_THINK
+			print_board();
+			std::cin.get();
+#endif
+			temp_result = -AI(0, curr_side, get_opponent(curr_side));;
+			if (temp_result > curr_max) { curr_max = temp_result; index_max = for_ind; }
+
+			unmake_take(take);
+#ifdef DEBUG_AI
+			std::cout << tab << "(think) take "
+				<< take  << " result: " << temp_result << std::endl;
+#endif
+
+		}
+	}
+	else if (poss_moves.size()) {
+		for (auto move_iter = poss_moves.begin(); move_iter != poss_moves.end(); ++move_iter, ++for_ind) {
+			auto& move = *move_iter;
+#ifdef DEBUG_THINK
+			std::cout << tab << "(think) move: " << move << std::endl;
+			print_board();
+			std::cout << std::endl;
+#endif
+			make_move(move);
+#ifdef DEBUG_THINK
+			print_board();
+			std::cin.get();
+#endif
+			temp_result = -AI(0, curr_side, get_opponent(curr_side));
+			if (temp_result > curr_max) { curr_max = temp_result; index_max = for_ind; }
+
+			unmake_move(move);
+#ifdef DEBUG_THINK
+			std::cout << tab << "(think) move " 
+				<< move << " result: " << temp_result << std::endl;
+#endif
+		}
+	}
+
+	final_index = index_max;
+	return final_index;
+}
+
+// min-max algorithm
+BNT Game::AI(BNT deep_lvl, Side ai_side, Side curr_side) {
+	BNT final_result,
+		temp_result;
+	BNT curr_max = std::numeric_limits<BNT>::min();;
+	std::vector<Move> poss_moves;
+	std::vector<TakeList> poss_takes;
+	//std::vector<BNT> analyze_results;
+
+	poss_moves.reserve(POSS_VARIANTS_SIZE);
+	poss_takes.reserve(POSS_VARIANTS_SIZE);
 
 	find_poss_variants(curr_side, poss_moves, poss_takes);
 #ifdef DEBUG_AI
@@ -252,70 +386,74 @@ AIResult Game::AI(BNT deep_lvl, Side ai_side, Side curr_side) {
 		<< poss_moves.size() 
 		<< std::endl;
 #endif
-
-
 	if ((poss_takes.size() + poss_moves.size() == 0) // end of the game
 		|| (poss_takes.size() == 0 && deep_lvl >= CALCULATION_LVL))
 	{
-		auto temp = AIResult{ 0, position_analysis(m_board, curr_side) };
+		++num_of_leaves;
+		auto temp = position_analysis(m_board);
+		if (curr_side == Side::black) { temp = -temp; }
 #ifdef DEBUG_AI
 		std::cout << tab << "(AI) deepest result on "
-			<< deep_lvl << ": " << temp.second <<
+			<< deep_lvl << ": " << temp <<
 			" for " << (bool)curr_side << " side" << std::endl;
 #endif
 		return temp;
 	}
 
-	analyze_results.reserve(poss_takes.size() + poss_moves.size());
+	//analyze_results.reserve(poss_takes.size() + poss_moves.size());
 
 	if (poss_takes.size()) {
 		for (auto& take : poss_takes) {
-			make_take(take);
 #ifdef DEBUG_AI
 			std::cout << tab << "(AI) take: " << take << std::endl;
 			print_board();
+			std::cout << std::endl;
 #endif
-			auto temp = AI(deep_lvl + 1, ai_side, get_opponent(curr_side));
-			analyze_results.push_back(
-				temp
-			);
+			make_take(take);
+#ifdef DEBUG_AI
+			print_board();
+			std::cin.get();
+#endif
+			temp_result = -AI(deep_lvl, ai_side, get_opponent(curr_side));
+			//temp_result = -AI(deep_lvl + 1, ai_side, get_opponent(curr_side));
+			if (temp_result > curr_max) { curr_max = temp_result; }
+			
 			unmake_take(take);
 #ifdef DEBUG_AI
-			std::cout << tab << "(AI) result: " << temp.second << std::endl;
+			std::cout << tab << "(AI) take " 
+				<< take << " result: " << temp_result << std::endl;
 #endif
+
 		}
 	}
 	else if (poss_moves.size()) {
 		for (auto& move : poss_moves) {
-			make_move(move);
 #ifdef DEBUG_AI
 			std::cout << tab << "(AI) move: " << move << std::endl;
 			print_board();
+			std::cout << std::endl;
 #endif
-			auto temp = AI(deep_lvl + 1, ai_side, get_opponent(curr_side));
-			analyze_results.push_back(
-				temp
-			);
+			make_move(move);
+#ifdef DEBUG_AI
+			print_board();
+			std::cin.get();
+#endif
+			temp_result = -AI(deep_lvl + 1, ai_side, get_opponent(curr_side));
+			if (temp_result > curr_max) { curr_max = temp_result; }
+
 			unmake_move(move);
 #ifdef DEBUG_AI
-			std::cout << tab << "(AI) result: " << temp.second << std::endl;
+			std::cout << tab << "(AI) move " 
+				<< move << " result: " << temp_result << std::endl;
 #endif
 		}
 	}
 
-	if (curr_side == ai_side) {
-		auto temp_it = std::max_element(analyze_results.begin(), analyze_results.end());
-		final_result = AIResult{ temp_it - analyze_results.begin(), temp_it->second };
-	}
-	else {
-		auto temp_it = std::min_element(analyze_results.begin(), analyze_results.end());
-		final_result = AIResult{ temp_it - analyze_results.begin(), temp_it->second };
-	}
+	final_result = curr_max;
 
 	if (deep_lvl == -1) {
 		std::cout << "(AI) before return" << std::endl;
-		std::cout << "  final_res: " << final_result.first << 
-			" " << final_result.second << std::endl;
+		std::cout << "  final_res: " << final_result << std::endl;
 		std::cout << "  poss variants is:" << std::endl;
 		std::cout << "  takes:" << std::endl;
 		for (auto& elt : poss_takes) {
@@ -349,10 +487,10 @@ void Game::init_board() {
 		for (BNT j = 0; j < BOARD_SIZE; ++j) {
 			SqContent& temp_square = get_square(Pos{ i, j });
 			if (temp_square == SqContent::empty_sq) {
-				if (i < ENGAGED_LINES) {
+				if (i < OCCUPIED_LINES) {
 					temp_square = SqContent::black_dr;
 				}
-				else if (i > BOARD_SIZE - ENGAGED_LINES - 1) {
+				else if (i > BOARD_SIZE - OCCUPIED_LINES - 1) {
 					temp_square = SqContent::white_dr;
 				}
 			}
@@ -921,6 +1059,10 @@ Side Game::get_winner(BoardType& endgame_board) {
 	}
 }
 
+inline Pos Game::get_pos(BNT index) {
+	return Pos{ index / BOARD_SIZE, index % BOARD_SIZE };
+}
+
 // invalid 'y' && 'x' may cause memory corruption && therefore error occurrence
 inline SqContent& Game::get_square(Pos pos) {
 	return m_board[get_index(pos)];
@@ -1049,5 +1191,13 @@ std::ostream& operator<< (std::ostream& outs, const Move& move) {
 	return outs << "(" << Game::get_notation(move.from) 
 		<< "->" << Game::get_notation(move.to) << ")  ";
 }
+
+//inline bool operator<(const AIResult& l, const AIResult& r) {
+//	return l.score < r.score;
+//}
+//
+//inline AIResult operator-(const AIResult& l, const AIResult& r) {
+//	return AIResult{ 0, l.score - r.score };
+//}
 
 }
